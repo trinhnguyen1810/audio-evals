@@ -5,7 +5,6 @@ import argparse
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Load environment variables early
 load_dotenv()
 
 from .pipeline import AudioEvaluationPipeline
@@ -16,7 +15,6 @@ from .evaluators.ai_agent_detector import AIAgentDetector
 
 
 def create_pipeline():
-    """Create and configure the audio evaluation pipeline with all evaluators."""
     
     print("🔧 Initializing Audio Evaluation Pipeline...")
     pipeline = AudioEvaluationPipeline()
@@ -36,8 +34,8 @@ def create_pipeline():
     pipeline.register_evaluator(volume_evaluator)
     
     # Register Speaker Overlap Detector  
-    print("   🗣️  Adding Speaker Overlap Detector (2.0s+ interruptions)")
-    overlap_detector = SpeakerOverlapDetector(min_overlap_duration=2.0)
+    print("   🗣️  Adding Speaker Overlap Detector (1.0s+ interruptions)")
+    overlap_detector = SpeakerOverlapDetector(min_overlap_duration=1.0)
     pipeline.register_evaluator(overlap_detector)
     
     # Register AI Agent Detector
@@ -50,16 +48,9 @@ def create_pipeline():
 
 
 def save_results(result, output_dir="results"):
-    """Save evaluation results to JSON file in results directory."""
-    
-    # Ensure results directory exists
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Create output filename with evaluation ID
     evaluation_id = result.get('evaluation_id', 'unknown')
     output_filename = os.path.join(output_dir, f"audio_evaluation_{evaluation_id}.json")
-    
-    # Save results to file
     with open(output_filename, 'w') as f:
         json.dump(result, f, indent=2)
     
@@ -68,7 +59,6 @@ def save_results(result, output_dir="results"):
 
 
 def print_evaluation_summary(result):
-    """Print a formatted summary of the evaluation results."""
     
     print("\n" + "="*60)
     print("AUDIO EVALUATION SUMMARY")
@@ -79,7 +69,6 @@ def print_evaluation_summary(result):
         print(f"Error: {result.get('error', 'Unknown error')}")
         return
     
-    # Basic info
     metadata = result.get("audio_metadata", {})
     duration_min = metadata.get("duration_seconds", 0) / 60
     print(f"📄 Audio Duration: {duration_min:.1f} minutes")
@@ -89,7 +78,6 @@ def print_evaluation_summary(result):
     
     results = result.get("results", {})
     
-    # Silence Detection Summary
     if "long_silence_detection" in results:
         silence_data = results["long_silence_detection"]
         print(f"\n🔇 SILENCE DETECTION:")
@@ -97,13 +85,11 @@ def print_evaluation_summary(result):
         if silence_data.get("timestamps"):
             print(f"   Periods: {len(silence_data['timestamps'])} silence gaps found")
     
-    # Volume Consistency Summary  
     if "volume_consistency" in results:
         volume_data = results["volume_consistency"]
         print(f"\n🔊 VOLUME CONSISTENCY:")
         print(f"   {volume_data['message']}")
         
-        # Speaker analysis
         if volume_data.get("speaker_analysis"):
             print(f"   Speaker Breakdown:")
             for speaker, analysis in volume_data["speaker_analysis"].items():
@@ -113,7 +99,6 @@ def print_evaluation_summary(result):
         if volume_data.get("timestamps"):
             print(f"   Issues: {len(volume_data['timestamps'])} volume problems detected")
     
-    # Speaker Overlap Summary
     if "speaker_overlap_detection" in results:
         overlap_data = results["speaker_overlap_detection"]
         print(f"\n🗣️  SPEAKER OVERLAPS:")
@@ -130,10 +115,7 @@ def print_evaluation_summary(result):
                 breakdown = analysis["severity_breakdown"]
                 print(f"   Breakdown: {breakdown['medium']} medium, {breakdown['major']} major")
             
-            if requires_attention:
-                print(f"   🚨 ATTENTION: Significant interruptions detected!")
     
-    # AI Agent Detection Summary
     if "ai_agent_detection" in results:
         ai_data = results["ai_agent_detection"]
         print(f"\n🤖 AI AGENT DETECTION:")
@@ -159,7 +141,6 @@ def print_evaluation_summary(result):
 
 
 def main():
-    """Main entry point for the audio evaluation pipeline."""
     
     parser = argparse.ArgumentParser(
         description="Audio Evaluation Pipeline - Analyze call recordings for quality issues",

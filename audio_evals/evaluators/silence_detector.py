@@ -1,4 +1,3 @@
-# app/evaluators/silence_detector.py
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
@@ -12,36 +11,15 @@ class LongSilenceDetector:
         self.energy_threshold = energy_threshold
     
     def evaluate(self, audio_data: np.ndarray, sample_rate: int, call_start_time: str) -> Dict[str, Any]:
-        """
-        Detect long silence periods in audio.
-        
-        Args:
-            audio_data: Audio samples as numpy array
-            sample_rate: Sample rate of audio
-            call_start_time: ISO timestamp when call started
-            
-        Returns:
-            Dictionary with results in expected format
-        """
-        
-        # Convert silence threshold to samples
-        silence_threshold_samples = int(self.silence_threshold_seconds * sample_rate)
-        
-        # Calculate audio energy in small windows (100ms)
-        window_size = int(0.1 * sample_rate)  # 100ms windows
+        window_size = int(0.1 * sample_rate)
         hop_size = window_size // 2
-        
-        # Calculate RMS energy for each window
         energy_values = []
         for i in range(0, len(audio_data) - window_size, hop_size):
             window = audio_data[i:i + window_size]
             rms_energy = np.sqrt(np.mean(window ** 2))
             energy_values.append(rms_energy)
         
-        # Find silent segments (energy below threshold)
         silent_windows = np.array(energy_values) < self.energy_threshold
-        
-        # Group consecutive silent windows into segments
         silent_segments = []
         current_start = None
         
@@ -49,23 +27,19 @@ class LongSilenceDetector:
             window_time = i * hop_size / sample_rate
             
             if is_silent and current_start is None:
-                # Start of silent segment
                 current_start = window_time
             elif not is_silent and current_start is not None:
-                # End of silent segment
                 duration = window_time - current_start
                 if duration >= self.silence_threshold_seconds:
                     silent_segments.append((current_start, window_time, duration))
                 current_start = None
         
-        # Handle case where audio ends during silence
         if current_start is not None:
             end_time = len(audio_data) / sample_rate
             duration = end_time - current_start
             if duration >= self.silence_threshold_seconds:
                 silent_segments.append((current_start, end_time, duration))
         
-        # Convert to timestamps relative to call start
         call_start_dt = datetime.fromisoformat(call_start_time.rstrip('Z'))
         timestamps = []
         
@@ -73,13 +47,19 @@ class LongSilenceDetector:
             start_dt = call_start_dt + timedelta(seconds=start_sec)
             end_dt = call_start_dt + timedelta(seconds=end_sec)
             
+            start_minutes = int(start_sec // 60)
+            start_seconds = int(start_sec % 60)
+            end_minutes = int(end_sec // 60)
+            end_seconds = int(end_sec % 60)
+            
             timestamps.append({
                 "startTime": start_dt.isoformat() + "Z",
                 "endTime": end_dt.isoformat() + "Z",
-                "durationSeconds": round(duration, 2)
+                "durationSeconds": round(duration, 2),
+                "relativeStartTime": f"{start_minutes:02d}:{start_seconds:02d}",
+                "relativeEndTime": f"{end_minutes:02d}:{end_seconds:02d}"
             })
         
-        # Build result
         has_long_silences = len(timestamps) > 0
         message = f"Found {len(timestamps)} silence periods longer than {self.silence_threshold_seconds}s"
         
