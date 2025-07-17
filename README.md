@@ -17,6 +17,27 @@ cd audio_evals
 pip install -r requirements.txt
 ```
 
+## Environment Setup
+
+Create a `.env` file in the root directory with the following configuration:
+
+```env
+# OpenAI API Configuration (required for AI agent detection)
+OPENAI_API_URL=https://api.openai.com/v1/chat/completions
+OPENAI_API_KEY=your_openai_api_key_here
+
+# AI Agent Detection Settings
+MIN_SPEAKERS_FOR_AI_DETECTION=3
+AI_DETECTION_CONFIDENCE_THRESHOLD=0.7
+
+# Pyannote API Key (required for advanced speaker diarization)
+PYANOTE_API_KEY=your_pyannote_api_key_here
+```
+
+**Note:** The pipeline will work without these keys but with reduced functionality:
+- Without OpenAI API key: AI agent detection will be disabled
+- Without Pyannote API key: Falls back to energy-based speaker clustering
+
 ## Usage
 
 ### Command Line
