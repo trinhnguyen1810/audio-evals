@@ -11,6 +11,7 @@ class LongSilenceDetector:
         self.energy_threshold = energy_threshold
     
     def evaluate(self, audio_data: np.ndarray, sample_rate: int, call_start_time: str) -> Dict[str, Any]:
+        # Calculate energy in 100ms windows with 50ms overlap
         window_size = int(0.1 * sample_rate)
         hop_size = window_size // 2
         energy_values = []
@@ -19,7 +20,10 @@ class LongSilenceDetector:
             rms_energy = np.sqrt(np.mean(window ** 2))
             energy_values.append(rms_energy)
         
+        # Find windows below energy threshold
         silent_windows = np.array(energy_values) < self.energy_threshold
+        
+        # Group consecutive silent windows into segments
         silent_segments = []
         current_start = None
         
@@ -34,12 +38,14 @@ class LongSilenceDetector:
                     silent_segments.append((current_start, window_time, duration))
                 current_start = None
         
+        # Handle case where audio ends during silence
         if current_start is not None:
             end_time = len(audio_data) / sample_rate
             duration = end_time - current_start
             if duration >= self.silence_threshold_seconds:
                 silent_segments.append((current_start, end_time, duration))
         
+        # Convert to timestamps with both absolute and relative times
         call_start_dt = datetime.fromisoformat(call_start_time.rstrip('Z'))
         timestamps = []
         
@@ -47,6 +53,7 @@ class LongSilenceDetector:
             start_dt = call_start_dt + timedelta(seconds=start_sec)
             end_dt = call_start_dt + timedelta(seconds=end_sec)
             
+            # Format relative times as MM:SS
             start_minutes = int(start_sec // 60)
             start_seconds = int(start_sec % 60)
             end_minutes = int(end_sec // 60)
@@ -60,6 +67,7 @@ class LongSilenceDetector:
                 "relativeEndTime": f"{end_minutes:02d}:{end_seconds:02d}"
             })
         
+        # Build response
         has_long_silences = len(timestamps) > 0
         message = f"Found {len(timestamps)} silence periods longer than {self.silence_threshold_seconds}s"
         

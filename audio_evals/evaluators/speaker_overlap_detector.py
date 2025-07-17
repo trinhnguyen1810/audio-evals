@@ -11,6 +11,7 @@ class SpeakerOverlapDetector:
         self.medium_threshold = max(3.0, self.min_overlap_duration + 1.0)
     
     def evaluate(self, audio_data: np.ndarray, sample_rate: int, call_start_time: str = None) -> Dict[str, Any]:
+        # Get speaker segments through diarization
         print("🎭 Getting speaker segments for overlap detection...")
         speaker_segments = perform_speaker_diarization(audio_data, sample_rate)
         
@@ -31,12 +32,14 @@ class SpeakerOverlapDetector:
                 }
             }
         
+        # Detect overlaps and filter by minimum duration
         overlaps = self._detect_overlaps(speaker_segments)
         significant_overlaps = [
             overlap for overlap in overlaps 
             if overlap["duration"] >= self.min_overlap_duration
         ]
         
+        # Process overlaps and classify severity
         overlap_timestamps = []
         severity_counts = {"medium": 0, "major": 0}
         highest_severity = "none"
@@ -58,6 +61,7 @@ class SpeakerOverlapDetector:
             timestamp_entry = self._create_overlap_timestamp(overlap, call_start_time)
             overlap_timestamps.append(timestamp_entry)
         
+        # Calculate summary statistics
         total_overlap_duration = sum(overlap["duration"] for overlap in significant_overlaps)
         call_duration = len(audio_data) / sample_rate
         overlap_percentage = (total_overlap_duration / call_duration) * 100 if call_duration > 0 else 0
@@ -93,16 +97,22 @@ class SpeakerOverlapDetector:
     def _detect_overlaps(self, speaker_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         overlaps = []
         
+        # Sort segments by start time
         sorted_segments = sorted(speaker_segments, key=lambda x: x["start"])
+        
+        # Check each segment against all others for temporal overlap
         for i, segment_a in enumerate(sorted_segments):
             for j, segment_b in enumerate(sorted_segments[i+1:], i+1):
                 if segment_a["speaker"] == segment_b["speaker"]:
                     continue
+                    
                 overlap_start = max(segment_a["start"], segment_b["start"])
                 overlap_end = min(segment_a["end"], segment_b["end"])
                 
                 if overlap_start < overlap_end:
                     overlap_duration = overlap_end - overlap_start
+                    
+                    # Determine who interrupted whom based on start times
                     if segment_a["start"] < segment_b["start"]:
                         primary_speaker = segment_a["speaker"]
                         interrupting_speaker = segment_b["speaker"]
@@ -124,17 +134,20 @@ class SpeakerOverlapDetector:
                         "severity_score": severity_score
                     })
         
+        # Sort overlaps by start time and merge adjacent ones
         overlaps.sort(key=lambda x: x["start"])
         merged_overlaps = self._merge_adjacent_overlaps(overlaps)
         
         return merged_overlaps
     
     def _calculate_overlap_severity(self, duration: float, interruption_delay: float) -> float:
+        # Base severity on duration
         if duration >= self.medium_threshold:
             duration_score = 0.8 + (min(duration - self.medium_threshold, 2.0) / 2.0) * 0.2
         else:
             duration_score = 0.5 + ((duration - self.min_overlap_duration) / (self.medium_threshold - self.min_overlap_duration)) * 0.3
         
+        # Adjust for interruption timing (quicker = more severe)
         if interruption_delay < 1.0:
             timing_multiplier = 1.2
         elif interruption_delay < 3.0:

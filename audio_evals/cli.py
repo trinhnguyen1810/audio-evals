@@ -15,7 +15,7 @@ from .evaluators.ai_agent_detector import AIAgentDetector
 
 
 def create_pipeline():
-    
+    """Create and configure the audio evaluation pipeline with all evaluators."""
     print("🔧 Initializing Audio Evaluation Pipeline...")
     pipeline = AudioEvaluationPipeline()
     
@@ -48,9 +48,11 @@ def create_pipeline():
 
 
 def save_results(result, output_dir="results"):
+    """Save evaluation results to JSON file in results directory."""
     os.makedirs(output_dir, exist_ok=True)
     evaluation_id = result.get('evaluation_id', 'unknown')
     output_filename = os.path.join(output_dir, f"audio_evaluation_{evaluation_id}.json")
+    
     with open(output_filename, 'w') as f:
         json.dump(result, f, indent=2)
     
@@ -59,7 +61,7 @@ def save_results(result, output_dir="results"):
 
 
 def print_evaluation_summary(result):
-    
+    """Print a formatted summary of the evaluation results."""
     print("\n" + "="*60)
     print("AUDIO EVALUATION SUMMARY")
     print("="*60)
@@ -69,6 +71,7 @@ def print_evaluation_summary(result):
         print(f"Error: {result.get('error', 'Unknown error')}")
         return
     
+    # Basic info
     metadata = result.get("audio_metadata", {})
     duration_min = metadata.get("duration_seconds", 0) / 60
     print(f"📄 Audio Duration: {duration_min:.1f} minutes")
@@ -78,6 +81,7 @@ def print_evaluation_summary(result):
     
     results = result.get("results", {})
     
+    # Silence Detection Summary
     if "long_silence_detection" in results:
         silence_data = results["long_silence_detection"]
         print(f"\n🔇 SILENCE DETECTION:")
@@ -85,6 +89,7 @@ def print_evaluation_summary(result):
         if silence_data.get("timestamps"):
             print(f"   Periods: {len(silence_data['timestamps'])} silence gaps found")
     
+    # Volume Consistency Summary
     if "volume_consistency" in results:
         volume_data = results["volume_consistency"]
         print(f"\n🔊 VOLUME CONSISTENCY:")
@@ -99,6 +104,7 @@ def print_evaluation_summary(result):
         if volume_data.get("timestamps"):
             print(f"   Issues: {len(volume_data['timestamps'])} volume problems detected")
     
+    # Speaker Overlap Summary
     if "speaker_overlap_detection" in results:
         overlap_data = results["speaker_overlap_detection"]
         print(f"\n🗣️  SPEAKER OVERLAPS:")
@@ -114,8 +120,8 @@ def print_evaluation_summary(result):
             if "severity_breakdown" in analysis:
                 breakdown = analysis["severity_breakdown"]
                 print(f"   Breakdown: {breakdown['medium']} medium, {breakdown['major']} major")
-            
     
+    # AI Agent Detection Summary
     if "ai_agent_detection" in results:
         ai_data = results["ai_agent_detection"]
         print(f"\n🤖 AI AGENT DETECTION:")
@@ -141,7 +147,7 @@ def print_evaluation_summary(result):
 
 
 def main():
-    
+    """Main entry point for the audio evaluation pipeline."""
     parser = argparse.ArgumentParser(
         description="Audio Evaluation Pipeline - Analyze call recordings for quality issues",
         formatter_class=argparse.RawDescriptionHelpFormatter,
